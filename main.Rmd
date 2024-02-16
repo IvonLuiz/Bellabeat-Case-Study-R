@@ -1,0 +1,34 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# TITLE
+
+## Librarys
+```{r Librarys}
+install.packages("tidyverse")
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+dir <- "Fitabase Data 4.12.16-5.12.16"
+
+daily_activity <- read.csv(file.path(dir, "dailyActivity_merged.csv"))
+daily_calories <- read.csv(file.path(dir, "dailyCalories_merged.csv"))
+daily_intensities <- read.csv(file.path(dir, "dailyIntensities_merged.csv"))
+daily_steps <- read.csv(file.path(dir, "dailySteps_merged.csv"))
+
+colnames(daily_activity)
+colnames(daily_calories)
+colnames(daily_intensities)
+colnames(daily_steps)
+```
+
+```{r}
+ggplot(daily_activity, mapping = aes(x = TotalSteps, y = Calories)) + geom_point() + geom_smooth()
+```
+
