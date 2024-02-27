@@ -10,7 +10,7 @@ output: html_notebook
 ```{r Librarys}
 #install.packages("tidyverse")
 #install.packages("patchwork")
-install.packages("ggpubr")
+#install.packages("ggpubr")
 ```
 
 ```{r}
@@ -103,11 +103,9 @@ print("Hourly_intensities:")
 colnames(hourly_intensities)
 ```
 
-This data is very large and does not provide many insights. 
+This data is very large and does not provide many insights.
 
-steps_narrow <- read.csv(file.path(dir, "minuteStepsNarrow_merged.csv")) 
-steps_wide <- read.csv(file.path(dir, "minuteStepsWide_merged.csv")) 
-minutes_calories_narrow <- read.csv(file.path(dir, "minuteCaloriesNarrow_merged.csv"))
+steps_narrow \<- read.csv(file.path(dir, "minuteStepsNarrow_merged.csv")) steps_wide \<- read.csv(file.path(dir, "minuteStepsWide_merged.csv")) minutes_calories_narrow \<- read.csv(file.path(dir, "minuteCaloriesNarrow_merged.csv"))
 
 ```{r}
 print("Sleep")
@@ -148,6 +146,7 @@ n_distinct(hourly_calories$Id)
 n_distinct(hourly_intensities$Id)
 
 ```
+
 We can see that we only have weight on 8 different people. So, this dataset will not give much insights.
 
 ### Duplicates
@@ -171,7 +170,7 @@ Now we will create a column for date and time to be able to merge and plot on th
 
 ```{r}
 # intensities
-hourly_intensities$ActivityHour=as.POSIXct(hourly_intensities$ActivityHour, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
+hourly_intensities$ActivityHour = as.POSIXct(hourly_intensities$ActivityHour, format="%m/%d/%Y %I:%M:%S %p", tz=Sys.timezone())
 hourly_intensities$time <- format(hourly_intensities$ActivityHour, format = "%H:%M:%S")
 hourly_intensities$date <- format(hourly_intensities$ActivityHour, format = "%m/%d/%y")
 
@@ -182,15 +181,17 @@ hourly_calories$date <- format(hourly_calories$ActivityHour, format = "%m/%d/%y"
 
 # activity
 daily_activity$ActivityDate=as.POSIXct(daily_activity$ActivityDate, format="%m/%d/%Y", tz=Sys.timezone())
-daily_activity$date <- format(daily_activity$ActivityDate, format = "%m/%d/%y")
+daily_activity$date <- format(daily_activity$ActivityDate, format = "%m/%d/%Y")
 
 # sleep
-sleep$date <- format(sleep$SleepDay, format = "%m/%d/%y")
+sleep$SleepDay=as.POSIXct(sleep$SleepDay, format="%m/%d/%Y", tz=Sys.timezone())
+sleep$date <- format(sleep$SleepDay, format = "%m/%d/%Y")
 
 ```
-```{r}
-subset(daily_activity, select = -c(Id, TotalSteps, Calories, SedentaryMinutes))
-```
+
+## Plots
+
+### Activity
 
 ```{r}
 daily_activity_long <- melt(
@@ -206,6 +207,8 @@ daily_activity_long %>%
   theme_bw()
 ```
 
+Distance traveled are usually done by light activity, our very active. This probably means people either just walk, or go running.
+
 ```{r}
 daily_activity_long <- melt(
   select(daily_activity, Id, ActivityDate, VeryActiveMinutes, FairlyActiveMinutes, LightlyActiveMinutes, SedentaryMinutes),
@@ -220,9 +223,7 @@ daily_activity_long %>%
   theme_bw()
 ```
 
-## Plots
-
-### Activity
+People spend most of their time by being sedentary. And when they get active, is usually lightly.
 
 ```{r}
 ggarrange(
@@ -234,40 +235,50 @@ ggarrange(
 
 ```
 
+We can clearly conclude that more steps and more distance equals more calories burned.
+
 ### Intensity and calories
 
-Lets find how intensity and heart rate vary though the day.
+Lets find how intensity and calories vary though the day and how they are corelated.
 
 ```{r}
-intensities_calories <- merge(hourly_intensities, hourly_calories, by=c("Id", "ActivityHour", "date", "time"))
+intensities_calories <- merge(hourly_intensities, hourly_calories, by = c("Id", "ActivityHour", "date", "time"))
 
 hourly_means <- intensities_calories %>%
   group_by(time) %>%
-  summarize(mean_calories = mean(Calories), mean_intensity = mean(TotalIntensity))
+  summarize(mean_calories = mean(Calories),
+            mean_intensity = mean(TotalIntensity))
 
 hourly_means
 ```
 
 ```{r}
-calories <- hourly_means %>%
-  ggplot(aes(x = time)) +
-  geom_point(aes(y = mean_calories), size = 1.5) +
-  scale_y_continuous(breaks = seq(0, 150, 50)) +
-  coord_cartesian(ylim = c(0, 150)) +
-  theme(axis.text.x = element_text(angle = 90)) +
-  labs(x = "Hour of Day", y = "Calories", color = "Metric", title = "Average Calories Over Time")
+ggarrange(
+  hourly_means %>%
+    ggplot(aes(x = time)) +
+    geom_point(aes(y = mean_calories), size = 1.5) +
+    scale_y_continuous(breaks = seq(0, 150, 50)) +
+    coord_cartesian(ylim = c(0, 150)) +
+    theme(axis.text.x = element_text(angle = 90)) +
+    labs(x = "Hour of Day", y = "Calories", color = "Metric", title = "Average Calories Over Time"),
+  
+  hourly_means %>%
+    ggplot(aes(x = time)) +
+    geom_point(aes(y = mean_intensity * 100), size = 1.5) +
+    theme(axis.text.x = element_text(angle = 90)) +
+    labs(x = "Hour of Day", y = "Intensity", color = "Metric", title = "Average Intensity Over Time"),
 
-intensity <- hourly_means %>%
-  ggplot(aes(x = time)) +
-  geom_point(aes(y = mean_intensity * 100), size = 1.5) +
-  theme(axis.text.x = element_text(angle = 90)) +
-  labs(x = "Hour of Day", y = "Intensity", color = "Metric", title = "Average Intensity Over Time")
 
-calories + intensity
+  intensities_calories %>%
+    ggplot(aes(x = Calories, y = TotalIntensity)) +
+    geom_jitter() +
+    geom_smooth()
+)
 ```
 
+Between 12:00 pm and 2:00 pm and between 5:00 pm and 7:00 pm we have a peak in intensity and calorie burning, as both are correlated.
 
-###  Sleep data
+### Sleep
 
 ```{r}
 sleep <- sleep %>% 
@@ -278,13 +289,15 @@ sleep <- sleep %>%
 # Create a histogram of total minutes asleep
 ggplot(sleep, aes(x = TotalMinutesAsleep)) +
   geom_histogram(binwidth = 45, fill = "skyblue", color = "black") +
-  labs(x = "Total Minutes Asleep", y = "Frequency", title = "Distribution of Total Minutes Asleep")
+  labs(x = "Total Minutes Asleep", y = "Frequency", title = "Distribution of Total Minutes Asleep") +
+  theme_bw()
 ```
 
 ```{r}
 ggplot(sleep, aes(x = TotalMinutesAsleep, y = TotalTimeInBed)) +
   geom_point(color = "skyblue") +
-  labs(x = "Total Minutes Asleep", y = "Time in bed", title = "Total Minutes Asleep vs. Total Time in Bed")
+  labs(x = "Total Minutes Asleep", y = "Time in bed", title = "Total Minutes Asleep vs. Total Time in Bed") +
+  theme_bw()
 ```
 
 ```{r}
@@ -295,23 +308,12 @@ average_sleep <- sleep %>%
 
 # Create a bar plot of average sleep duration per night
 ggplot(average_sleep, aes(x = factor(Id), y = AverageMinutesAsleep)) +
+  geom_rect(xmin = -Inf, xmax = Inf, ymin = 420, ymax = 540, fill = "lightblue", alpha = 0.1) +  # Adds areaof de 7 hours - 9 hours
   geom_bar(stat = "identity", fill = "skyblue") +
+  theme_bw() +
   labs(x = "ID", y = "Average Minutes Asleep", title = "Average Sleep Duration per Night") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 ```
-
-```{r}
-# Convert SleepDay to Date format
-sleep$SleepDay <- as.Date(sleep$SleepDay, format = "%m/%d/%Y")
-
-# Create a line plot of Total Sleep Records over time
-ggplot(sleep, aes(x = SleepDay, y = TotalSleepRecords)) +
-  geom_point() +
-  labs(x = "Date", y = "Total Sleep Records", title = "Total Sleep Records Over Time")
-
-```
-
-
 
 ### Weight
 
@@ -325,3 +327,61 @@ ggplot(weight, aes(x = Date, y = WeightKg)) +
   labs(x = "Date", y = "Weight (Kg)", title = "Weight Trend Over Time")
 
 ```
+
+### Combined
+
+We want to understand better if sleep has any impact in activity on the day
+
+```{r}
+average_activity <- daily_activity %>%
+  group_by(Id) %>%
+  summarize(AverageTotalSteps = mean(TotalSteps),
+            AverageTotalDistance = mean(TotalDistance),
+            AverageCalories = mean(Calories))
+
+
+combined_data = merge(sleep, daily_activity, by = c("Id", "date"))
+
+```
+
+```{r}
+ggarrange(
+  
+  combined_data %>%
+    ggplot(aes(x = TotalMinutesAsleep, y = SedentaryMinutes)) +
+    geom_point() +
+    geom_smooth(),
+  
+  combined_data %>%
+    ggplot(aes(x = TotalMinutesAsleep, y = TotalSteps)) +
+    geom_point() +
+    geom_smooth(),
+      
+
+  average_combined_data %>%
+    ggplot(aes(x = AverageMinutesAsleep, y = AverageTotalSteps)) +
+    geom_point() +
+    geom_smooth(),
+
+  average_combined_data %>%
+    ggplot(aes(x = AverageMinutesAsleep, y = AverageCalories)) +
+    geom_point() +
+    geom_smooth(),
+
+  average_combined_data %>%
+    ggplot(aes(x = AverageMinutesAsleep, y = AverageTotalDistance)) +
+    geom_point() +
+    geom_smooth() 
+  
+)
+```
+
+It seems like there is no correlation between sleeping minutes and steps/activity. But it seems like more sleep reduces sedentary minutes.
+
+## Conclusions
+
+Bellabeat must continue collecting data about users, and also collect more useful information, such as type of activity practiced (sport, bodybuilding, cycling, running, etc.), weight throughout the day, work data (sedentary, standing , active, etc.).
+
+We could clearly see that by increasing steps and distance we burn more calories, so we could encourage users to be more active, like walking to places instead of driving. The company should send information about steps to users to encourage them to stay active.
+
+Additionally, improving the amount of sleep should help to not be tired during the day and help avoid big amount of sedentary minutes. One way is to reduce time wasted in bed. Additionally, setting an alarm for a certain bedtime can help. This way we can improve sleep time to at least 7 hours, aiming for 8 hours.
